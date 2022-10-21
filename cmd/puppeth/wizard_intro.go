@@ -19,9 +19,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -72,23 +74,31 @@ func (w *wizard) run() {
 	// Load initial configurations and connect to all live servers
 	w.conf.path = filepath.Join(os.Getenv("HOME"), ".puppeth", w.network)
 
-	blob, err := os.ReadFile(w.conf.path)
+	blob, err := ioutil.ReadFile(w.conf.path)
 	if err != nil {
 		log.Warn("No previous configurations found", "path", w.conf.path)
 	} else if err := json.Unmarshal(blob, &w.conf); err != nil {
 		log.Crit("Previous configuration corrupted", "path", w.conf.path, "err", err)
 	} else {
-		// Dial all previously known servers
+		// Dial all previously known servers concurrently
+		var pend sync.WaitGroup
 		for server, pubkey := range w.conf.Servers {
-			log.Info("Dialing previously configured server", "server", server)
-			client, err := dial(server, pubkey)
-			if err != nil {
-				log.Error("Previous server unreachable", "server", server, "err", err)
-			}
-			w.lock.Lock()
-			w.servers[server] = client
-			w.lock.Unlock()
+			pend.Add(1)
+
+			go func(server string, pubkey []byte) {
+				defer pend.Done()
+
+				log.Info("Dialing previously configured server", "server", server)
+				client, err := dial(server, pubkey)
+				if err != nil {
+					log.Error("Previous server unreachable", "server", server, "err", err)
+				}
+				w.lock.Lock()
+				w.servers[server] = client
+				w.lock.Unlock()
+			}(server, pubkey)
 		}
+		pend.Wait()
 		w.networkStats()
 	}
 	// Basics done, loop ad infinitum about what to do

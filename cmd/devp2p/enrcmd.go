@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -30,39 +31,37 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/urfave/cli/v2"
+	"gopkg.in/urfave/cli.v1"
 )
 
-var fileFlag = &cli.StringFlag{Name: "file"}
-
-var enrdumpCommand = &cli.Command{
+var enrdumpCommand = cli.Command{
 	Name:   "enrdump",
 	Usage:  "Pretty-prints node records",
 	Action: enrdump,
 	Flags: []cli.Flag{
-		fileFlag,
+		cli.StringFlag{Name: "file"},
 	},
 }
 
 func enrdump(ctx *cli.Context) error {
 	var source string
-	if file := ctx.String(fileFlag.Name); file != "" {
+	if file := ctx.String("file"); file != "" {
 		if ctx.NArg() != 0 {
 			return fmt.Errorf("can't dump record from command-line argument in -file mode")
 		}
 		var b []byte
 		var err error
 		if file == "-" {
-			b, err = io.ReadAll(os.Stdin)
+			b, err = ioutil.ReadAll(os.Stdin)
 		} else {
-			b, err = os.ReadFile(file)
+			b, err = ioutil.ReadFile(file)
 		}
 		if err != nil {
 			return err
 		}
 		source = string(b)
 	} else if ctx.NArg() == 1 {
-		source = ctx.Args().First()
+		source = ctx.Args()[0]
 	} else {
 		return fmt.Errorf("need record as argument")
 	}

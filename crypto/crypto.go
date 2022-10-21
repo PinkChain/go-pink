@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/ioutil"
 	"math/big"
 	"os"
 
@@ -249,7 +250,7 @@ func checkKeyFileEnd(r *bufio.Reader) error {
 // restrictive permissions. The key data is saved hex-encoded.
 func SaveECDSA(file string, key *ecdsa.PrivateKey) error {
 	k := hex.EncodeToString(FromECDSA(key))
-	return os.WriteFile(file, []byte(k), 0600)
+	return ioutil.WriteFile(file, []byte(k), 0600)
 }
 
 // GenerateKey generates a new private key.

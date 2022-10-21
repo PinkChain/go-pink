@@ -39,7 +39,7 @@ ADD genesis.json /genesis.json
 ADD account.json /account.json
 ADD account.pass /account.pass
 
-EXPOSE 8080 30303 30303/udp
+EXPOSE 8080 30600 30600/udp
 
 ENTRYPOINT [ \
 	"faucet", "--genesis", "/genesis.json", "--network", "{{.NetworkID}}", "--bootnodes", "{{.Bootnodes}}", "--ethstats", "{{.Ethstats}}", "--ethport", "{{.EthPort}}",     \
@@ -116,7 +116,7 @@ func deployFaucet(client *sshClient, network string, bootnodes []string, config 
 		"VHost":         config.host,
 		"ApiPort":       config.port,
 		"EthPort":       config.node.port,
-		"EthName":       getEthName(config.node.ethstats),
+		"EthName":       config.node.ethstats[:strings.Index(config.node.ethstats, ":")],
 		"CaptchaToken":  config.captchaToken,
 		"CaptchaSecret": config.captchaSecret,
 		"FaucetAmount":  config.amount,

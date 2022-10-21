@@ -17,6 +17,7 @@
 package geth
 
 import (
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -183,7 +184,11 @@ func TestAndroid(t *testing.T) {
 		t.Logf("initialization took %v", time.Since(start))
 	}
 	// Create and switch to a temporary workspace
-	workspace := t.TempDir()
+	workspace, err := ioutil.TempDir("", "geth-android-")
+	if err != nil {
+		t.Fatalf("failed to create temporary workspace: %v", err)
+	}
+	defer os.RemoveAll(workspace)
 
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -209,14 +214,14 @@ func TestAndroid(t *testing.T) {
 	}
 	cp.CopyFile(filepath.Join("libs", "geth.aar"), "geth.aar")
 
-	if err = os.WriteFile(filepath.Join("src", "androidTest", "java", "org", "ethereum", "gethtest", "AndroidTest.java"), []byte(androidTestClass), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(filepath.Join("src", "androidTest", "java", "org", "ethereum", "gethtest", "AndroidTest.java"), []byte(androidTestClass), os.ModePerm); err != nil {
 		t.Fatalf("failed to write Android test class: %v", err)
 	}
 	// Finish creating the project and run the tests via gradle
-	if err = os.WriteFile(filepath.Join("src", "main", "AndroidManifest.xml"), []byte(androidManifest), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile(filepath.Join("src", "main", "AndroidManifest.xml"), []byte(androidManifest), os.ModePerm); err != nil {
 		t.Fatalf("failed to write Android manifest: %v", err)
 	}
-	if err = os.WriteFile("build.gradle", []byte(gradleConfig), os.ModePerm); err != nil {
+	if err = ioutil.WriteFile("build.gradle", []byte(gradleConfig), os.ModePerm); err != nil {
 		t.Fatalf("failed to write gradle build file: %v", err)
 	}
 	if output, err := exec.Command("gradle", "connectedAndroidTest").CombinedOutput(); err != nil {

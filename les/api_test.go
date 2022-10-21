@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"sync"
@@ -340,6 +341,7 @@ func freezeClient(ctx context.Context, t *testing.T, server *rpc.Client, clientI
 	if err := server.CallContext(ctx, nil, "debug_freezeClient", clientID); err != nil {
 		t.Fatalf("Failed to freeze client: %v", err)
 	}
+
 }
 
 func setCapacity(ctx context.Context, t *testing.T, server *rpc.Client, clientID enode.ID, cap uint64) {
@@ -421,7 +423,7 @@ func NewAdapter(adapterType string, services adapters.LifecycleConstructors) (ad
 		//	case "socket":
 		//		adapter = adapters.NewSocketAdapter(services)
 	case "exec":
-		baseDir, err0 := os.MkdirTemp("", "les-test")
+		baseDir, err0 := ioutil.TempDir("", "les-test")
 		if err0 != nil {
 			return nil, teardown, err0
 		}

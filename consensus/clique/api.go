@@ -196,11 +196,7 @@ func (sb *blockNumberOrHashOrRLP) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &input); err != nil {
 		return err
 	}
-	blob, err := hexutil.Decode(input)
-	if err != nil {
-		return err
-	}
-	sb.RLP = blob
+	sb.RLP = hexutil.MustDecode(input)
 	return nil
 }
 
@@ -217,9 +213,6 @@ func (api *API) GetSigner(rlpOrBlockNr *blockNumberOrHashOrRLP) (common.Address,
 			header = api.chain.GetHeaderByHash(hash)
 		} else if number, ok := blockNrOrHash.Number(); ok {
 			header = api.chain.GetHeaderByNumber(uint64(number.Int64()))
-		}
-		if header == nil {
-			return common.Address{}, fmt.Errorf("missing block %v", blockNrOrHash.String())
 		}
 		return api.clique.Author(header)
 	}

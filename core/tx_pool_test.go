@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"math/rand"
 	"os"
@@ -669,6 +670,7 @@ func TestTransactionPostponing(t *testing.T) {
 	// Add a batch consecutive pending transactions for validation
 	txs := []*types.Transaction{}
 	for i, key := range keys {
+
 		for j := 0; j < 100; j++ {
 			var tx *types.Transaction
 			if (i+j)%2 == 0 {
@@ -2241,7 +2243,7 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 	t.Parallel()
 
 	// Create a temporary file for the journal
-	file, err := os.CreateTemp("", "")
+	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		t.Fatalf("failed to create temporary journal: %v", err)
 	}
@@ -2536,26 +2538,5 @@ func BenchmarkInsertRemoteWithAllLocals(b *testing.B) {
 			pool.AddRemotes([]*types.Transaction{remotes[i]})
 		}
 		pool.Stop()
-	}
-}
-
-// Benchmarks the speed of batch transaction insertion in case of multiple accounts.
-func BenchmarkPoolMultiAccountBatchInsert(b *testing.B) {
-	// Generate a batch of transactions to enqueue into the pool
-	pool, _ := setupTxPool()
-	defer pool.Stop()
-	b.ReportAllocs()
-	batches := make(types.Transactions, b.N)
-	for i := 0; i < b.N; i++ {
-		key, _ := crypto.GenerateKey()
-		account := crypto.PubkeyToAddress(key.PublicKey)
-		pool.currentState.AddBalance(account, big.NewInt(1000000))
-		tx := transaction(uint64(0), 100000, key)
-		batches[i] = tx
-	}
-	// Benchmark importing the transactions into the queue
-	b.ResetTimer()
-	for _, tx := range batches {
-		pool.AddRemotesSync([]*types.Transaction{tx})
 	}
 }

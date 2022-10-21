@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/user"
@@ -30,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
-	"golang.org/x/term"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // sshClient is a small wrapper around Go's SSH client with a few utility methods
@@ -95,13 +96,13 @@ func dial(server string, pubkey []byte) (*sshClient, error) {
 	}
 	if err != nil {
 		path := filepath.Join(user.HomeDir, ".ssh", identity)
-		if buf, err := os.ReadFile(path); err != nil {
+		if buf, err := ioutil.ReadFile(path); err != nil {
 			log.Warn("No SSH key, falling back to passwords", "path", path, "err", err)
 		} else {
 			key, err := ssh.ParsePrivateKey(buf)
 			if err != nil {
 				fmt.Printf("What's the decryption password for %s? (won't be echoed)\n>", path)
-				blob, err := term.ReadPassword(int(os.Stdin.Fd()))
+				blob, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println()
 				if err != nil {
 					log.Warn("Couldn't read password", "err", err)
@@ -118,7 +119,7 @@ func dial(server string, pubkey []byte) (*sshClient, error) {
 		}
 		auths = append(auths, ssh.PasswordCallback(func() (string, error) {
 			fmt.Printf("What's the login password for %s at %s? (won't be echoed)\n> ", username, server)
-			blob, err := term.ReadPassword(int(os.Stdin.Fd()))
+			blob, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 
 			fmt.Println()
 			return string(blob), err
@@ -163,7 +164,7 @@ func dial(server string, pubkey []byte) (*sshClient, error) {
 			return nil
 		}
 		// We have a mismatch, forbid connecting
-		return errors.New("ssh key mismatch, re-add the machine to update")
+		return errors.New("ssh key mismatch, readd the machine to update")
 	}
 	client, err := ssh.Dial("tcp", hostport, &ssh.ClientConfig{User: username, Auth: auths, HostKeyCallback: keycheck})
 	if err != nil {

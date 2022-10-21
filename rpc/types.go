@@ -30,21 +30,18 @@ import (
 
 // API describes the set of methods offered over the RPC interface
 type API struct {
-	Namespace     string      // namespace under which the rpc methods of Service are exposed
-	Version       string      // deprecated - this field is no longer used, but retained for compatibility
-	Service       interface{} // receiver instance which holds the methods
-	Public        bool        // deprecated - this field is no longer used, but retained for compatibility
-	Authenticated bool        // whether the api should only be available behind authentication.
+	Namespace string      // namespace under which the rpc methods of Service are exposed
+	Version   string      // api version for DApp's
+	Service   interface{} // receiver instance which holds the methods
+	Public    bool        // indication if the methods must be considered safe for public use
 }
 
 // ServerCodec implements reading, parsing and writing RPC messages for the server side of
 // a RPC session. Implementations must be go-routine safe since the codec can be called in
 // multiple go-routines concurrently.
 type ServerCodec interface {
-	peerInfo() PeerInfo
 	readBatch() (msgs []*jsonrpcMessage, isBatch bool, err error)
 	close()
-
 	jsonWriter
 }
 
@@ -61,11 +58,9 @@ type jsonWriter interface {
 type BlockNumber int64
 
 const (
-	SafeBlockNumber      = BlockNumber(-4)
-	FinalizedBlockNumber = BlockNumber(-3)
-	PendingBlockNumber   = BlockNumber(-2)
-	LatestBlockNumber    = BlockNumber(-1)
-	EarliestBlockNumber  = BlockNumber(0)
+	PendingBlockNumber  = BlockNumber(-2)
+	LatestBlockNumber   = BlockNumber(-1)
+	EarliestBlockNumber = BlockNumber(0)
 )
 
 // UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
@@ -89,12 +84,6 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		return nil
 	case "pending":
 		*bn = PendingBlockNumber
-		return nil
-	case "finalized":
-		*bn = FinalizedBlockNumber
-		return nil
-	case "safe":
-		*bn = SafeBlockNumber
 		return nil
 	}
 
@@ -120,10 +109,6 @@ func (bn BlockNumber) MarshalText() ([]byte, error) {
 		return []byte("latest"), nil
 	case PendingBlockNumber:
 		return []byte("pending"), nil
-	case FinalizedBlockNumber:
-		return []byte("finalized"), nil
-	case SafeBlockNumber:
-		return []byte("safe"), nil
 	default:
 		return hexutil.Uint64(bn).MarshalText()
 	}
@@ -170,14 +155,6 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 		bn := PendingBlockNumber
 		bnh.BlockNumber = &bn
 		return nil
-	case "finalized":
-		bn := FinalizedBlockNumber
-		bnh.BlockNumber = &bn
-		return nil
-	case "safe":
-		bn := SafeBlockNumber
-		bnh.BlockNumber = &bn
-		return nil
 	default:
 		if len(input) == 66 {
 			hash := common.Hash{}
@@ -207,16 +184,6 @@ func (bnh *BlockNumberOrHash) Number() (BlockNumber, bool) {
 		return *bnh.BlockNumber, true
 	}
 	return BlockNumber(0), false
-}
-
-func (bnh *BlockNumberOrHash) String() string {
-	if bnh.BlockNumber != nil {
-		return strconv.Itoa(int(*bnh.BlockNumber))
-	}
-	if bnh.BlockHash != nil {
-		return bnh.BlockHash.String()
-	}
-	return "nil"
 }
 
 func (bnh *BlockNumberOrHash) Hash() (common.Hash, bool) {

@@ -31,7 +31,7 @@ type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
-	// GetHeader returns the header corresponding to the hash/number argument pair.
+	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.Header
 }
 
@@ -40,7 +40,6 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	var (
 		beneficiary common.Address
 		baseFee     *big.Int
-		random      *common.Hash
 	)
 
 	// If we don't have an explicit author (i.e. not mining), extract from the header
@@ -52,9 +51,6 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.BaseFee != nil {
 		baseFee = new(big.Int).Set(header.BaseFee)
 	}
-	if header.Difficulty.Cmp(common.Big0) == 0 {
-		random = &header.MixDigest
-	}
 	return vm.BlockContext{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -65,7 +61,6 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		Difficulty:  new(big.Int).Set(header.Difficulty),
 		BaseFee:     baseFee,
 		GasLimit:    header.GasLimit,
-		Random:      random,
 	}
 }
 
@@ -84,11 +79,6 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 	var cache []common.Hash
 
 	return func(n uint64) common.Hash {
-		if ref.Number.Uint64() <= n {
-			// This situation can happen if we're doing tracing and using
-			// block overrides.
-			return common.Hash{}
-		}
 		// If there's no hash cache yet, make one
 		if len(cache) == 0 {
 			cache = append(cache, ref.ParentHash)

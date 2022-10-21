@@ -87,7 +87,8 @@ func NewOracle(backend OracleBackend, params Config) *Oracle {
 	if percent < 0 {
 		percent = 0
 		log.Warn("Sanitizing invalid gasprice oracle sample percentile", "provided", params.Percentile, "updated", percent)
-	} else if percent > 100 {
+	}
+	if percent > 100 {
 		percent = 100
 		log.Warn("Sanitizing invalid gasprice oracle sample percentile", "provided", params.Percentile, "updated", percent)
 	}
@@ -102,16 +103,6 @@ func NewOracle(backend OracleBackend, params Config) *Oracle {
 		log.Warn("Sanitizing invalid gasprice oracle ignore price", "provided", params.IgnorePrice, "updated", ignorePrice)
 	} else if ignorePrice.Int64() > 0 {
 		log.Info("Gasprice oracle is ignoring threshold set", "threshold", ignorePrice)
-	}
-	maxHeaderHistory := params.MaxHeaderHistory
-	if maxHeaderHistory < 1 {
-		maxHeaderHistory = 1
-		log.Warn("Sanitizing invalid gasprice oracle max header history", "provided", params.MaxHeaderHistory, "updated", maxHeaderHistory)
-	}
-	maxBlockHistory := params.MaxBlockHistory
-	if maxBlockHistory < 1 {
-		maxBlockHistory = 1
-		log.Warn("Sanitizing invalid gasprice oracle max block history", "provided", params.MaxBlockHistory, "updated", maxBlockHistory)
 	}
 
 	cache, _ := lru.New(2048)
@@ -134,8 +125,8 @@ func NewOracle(backend OracleBackend, params Config) *Oracle {
 		ignorePrice:      ignorePrice,
 		checkBlocks:      blocks,
 		percentile:       percent,
-		maxHeaderHistory: maxHeaderHistory,
-		maxBlockHistory:  maxBlockHistory,
+		maxHeaderHistory: params.MaxHeaderHistory,
+		maxBlockHistory:  params.MaxBlockHistory,
 		historyCache:     cache,
 	}
 }

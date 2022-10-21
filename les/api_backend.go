@@ -168,8 +168,11 @@ func (b *LesApiBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	return nil, nil
 }
 
-func (b *LesApiBackend) GetLogs(ctx context.Context, hash common.Hash, number uint64) ([][]*types.Log, error) {
-	return light.GetBlockLogs(ctx, b.eth.odr, hash, number)
+func (b *LesApiBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
+	if number := rawdb.ReadHeaderNumber(b.eth.chainDb, hash); number != nil {
+		return light.GetBlockLogs(ctx, b.eth.odr, hash, *number)
+	}
+	return nil, nil
 }
 
 func (b *LesApiBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
@@ -321,7 +324,7 @@ func (b *LesApiBackend) CurrentHeader() *types.Header {
 	return b.eth.blockchain.CurrentHeader()
 }
 
-func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (*state.StateDB, error) {
+func (b *LesApiBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error) {
 	return b.eth.stateAtBlock(ctx, block, reexec)
 }
 

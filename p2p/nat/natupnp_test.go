@@ -223,7 +223,7 @@ func (dev *fakeIGD) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (dev *fakeIGD) replaceListenAddr(resp string) string {
-	return strings.ReplaceAll(resp, "{{listenAddr}}", dev.listener.Addr().String())
+	return strings.Replace(resp, "{{listenAddr}}", dev.listener.Addr().String(), -1)
 }
 
 func (dev *fakeIGD) listen() (err error) {

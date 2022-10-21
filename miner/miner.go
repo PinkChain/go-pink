@@ -35,8 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// Backend wraps all methods required for mining. Only full node is capable
-// to offer all the functions here.
+// Backend wraps all methods required for mining.
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
@@ -69,7 +68,7 @@ type Miner struct {
 	wg sync.WaitGroup
 }
 
-func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool) *Miner {
+func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(block *types.Block) bool) *Miner {
 	miner := &Miner{
 		eth:     eth,
 		mux:     mux,
@@ -238,28 +237,4 @@ func (miner *Miner) DisablePreseal() {
 // to the given channel.
 func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscription {
 	return miner.worker.pendingLogsFeed.Subscribe(ch)
-}
-
-// GetSealingBlockAsync requests to generate a sealing block according to the
-// given parameters. Regardless of whether the generation is successful or not,
-// there is always a result that will be returned through the result channel.
-// The difference is that if the execution fails, the returned result is nil
-// and the concrete error is dropped silently.
-func (miner *Miner) GetSealingBlockAsync(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (chan *types.Block, error) {
-	resCh, _, err := miner.worker.getSealingBlock(parent, timestamp, coinbase, random, noTxs)
-	if err != nil {
-		return nil, err
-	}
-	return resCh, nil
-}
-
-// GetSealingBlockSync creates a sealing block according to the given parameters.
-// If the generation is failed or the underlying work is already closed, an error
-// will be returned.
-func (miner *Miner) GetSealingBlockSync(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (*types.Block, error) {
-	resCh, errCh, err := miner.worker.getSealingBlock(parent, timestamp, coinbase, random, noTxs)
-	if err != nil {
-		return nil, err
-	}
-	return <-resCh, <-errCh
 }

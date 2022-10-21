@@ -171,10 +171,7 @@ func (c *BoundContract) Call(opts *CallOpts, results *[]interface{}, method stri
 			return ErrNoPendingState
 		}
 		output, err = pb.PendingCallContract(ctx, msg)
-		if err != nil {
-			return err
-		}
-		if len(output) == 0 {
+		if err == nil && len(output) == 0 {
 			// Make sure we have a contract to operate on, and bail out otherwise.
 			if code, err = pb.PendingCodeAt(ctx, c.address); err != nil {
 				return err
@@ -373,7 +370,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		rawTx, err = c.createLegacyTx(opts, contract, input)
 	} else {
 		// Only query for basefee if gasPrice not specified
-		if head, errHead := c.transactor.HeaderByNumber(ensureContext(opts.Context), nil); errHead != nil {
+		if head, errHead := c.transactor.HeaderByNumber(ensureContext(opts.Context), nil); err != nil {
 			return nil, errHead
 		} else if head.BaseFee != nil {
 			rawTx, err = c.createDynamicTx(opts, contract, input, head)

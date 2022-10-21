@@ -19,14 +19,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/jedisct1/go-minisign"
 )
 
 func TestVerification(t *testing.T) {
@@ -49,17 +47,17 @@ func TestVerification(t *testing.T) {
 
 func testVerification(t *testing.T, pubkey, sigdir string) {
 	// Data to verify
-	data, err := os.ReadFile("./testdata/vcheck/data.json")
+	data, err := ioutil.ReadFile("./testdata/vcheck/data.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Signatures, with and without comments, both trusted and untrusted
-	files, err := os.ReadDir(sigdir)
+	files, err := ioutil.ReadDir(sigdir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		sig, err := os.ReadFile(filepath.Join(sigdir, f.Name()))
+		sig, err := ioutil.ReadFile(filepath.Join(sigdir, f.Name()))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -87,7 +85,7 @@ func versionUint(v string) int {
 
 // TestMatching can be used to check that the regexps are correct
 func TestMatching(t *testing.T) {
-	data, _ := os.ReadFile("./testdata/vcheck/vulnerabilities.json")
+	data, _ := ioutil.ReadFile("./testdata/vcheck/vulnerabilities.json")
 	var vulns []vulnJson
 	if err := json.Unmarshal(data, &vulns); err != nil {
 		t.Fatal(err)
@@ -118,6 +116,7 @@ func TestMatching(t *testing.T) {
 						version, vuln.Introduced, vuln.Fixed, vuln.Name, vulnIntro, current, vulnFixed)
 				}
 			}
+
 		}
 	}
 	for major := 1; major < 2; major++ {
@@ -128,40 +127,4 @@ func TestMatching(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestGethPubKeysParseable(t *testing.T) {
-	for _, pubkey := range gethPubKeys {
-		_, err := minisign.NewPublicKey(pubkey)
-		if err != nil {
-			t.Errorf("Should be parseable")
-		}
-	}
-}
-
-func TestKeyID(t *testing.T) {
-	type args struct {
-		id [8]byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{"@holiman key", args{id: extractKeyId(gethPubKeys[0])}, "FB1D084D39BAEC24"},
-		{"second key", args{id: extractKeyId(gethPubKeys[1])}, "138B1CA303E51687"},
-		{"third key", args{id: extractKeyId(gethPubKeys[2])}, "FD9813B2D2098484"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := keyID(tt.args.id); got != tt.want {
-				t.Errorf("keyID() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func extractKeyId(pubkey string) [8]byte {
-	p, _ := minisign.NewPublicKey(pubkey)
-	return p.KeyId
 }

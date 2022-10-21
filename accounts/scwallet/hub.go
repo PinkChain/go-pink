@@ -34,7 +34,7 @@ package scwallet
 
 import (
 	"encoding/json"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,7 +96,7 @@ func (hub *Hub) readPairings() error {
 		return err
 	}
 
-	pairingData, err := io.ReadAll(pairingFile)
+	pairingData, err := ioutil.ReadAll(pairingFile)
 	if err != nil {
 		return err
 	}

@@ -21,13 +21,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -40,15 +40,13 @@ type httpConfig struct {
 	CorsAllowedOrigins []string
 	Vhosts             []string
 	prefix             string // path prefix on which to mount http handler
-	jwtSecret          []byte // optional JWT secret
 }
 
 // wsConfig is the JSON-RPC/Websocket configuration
 type wsConfig struct {
-	Origins   []string
-	Modules   []string
-	prefix    string // path prefix on which to mount ws handler
-	jwtSecret []byte // optional JWT secret
+	Origins []string
+	Modules []string
+	prefix  string // path prefix on which to mount ws handler
 }
 
 type rpcHandler struct {
@@ -81,10 +79,6 @@ type httpServer struct {
 
 	handlerNames map[string]string
 }
-
-const (
-	shutdownTimeout = 5 * time.Second
-)
 
 func newHTTPServer(log log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
 	h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
@@ -134,7 +128,6 @@ func (h *httpServer) start() error {
 	if h.timeouts != (rpc.HTTPTimeouts{}) {
 		CheckTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout
-		h.server.ReadHeaderTimeout = h.timeouts.ReadHeaderTimeout
 		h.server.WriteTimeout = h.timeouts.WriteTimeout
 		h.server.IdleTimeout = h.timeouts.IdleTimeout
 	}
@@ -164,7 +157,7 @@ func (h *httpServer) start() error {
 	}
 	// Log http endpoint.
 	h.log.Info("HTTP server started",
-		"endpoint", listener.Addr(), "auth", (h.httpConfig.jwtSecret != nil),
+		"endpoint", listener.Addr(),
 		"prefix", h.httpConfig.prefix,
 		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
 		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
@@ -267,13 +260,7 @@ func (h *httpServer) doStop() {
 		h.wsHandler.Store((*rpcHandler)(nil))
 		wsHandler.server.Stop()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-	defer cancel()
-	err := h.server.Shutdown(ctx)
-	if err == ctx.Err() {
-		h.log.Warn("HTTP server graceful shutdown timed out")
-		h.server.Close()
-	}
+	h.server.Shutdown(context.Background())
 	h.listener.Close()
 	h.log.Info("HTTP server stopped", "endpoint", h.listener.Addr())
 
@@ -293,12 +280,12 @@ func (h *httpServer) enableRPC(apis []rpc.API, config httpConfig) error {
 
 	// Create RPC server and handler.
 	srv := rpc.NewServer()
-	if err := RegisterApis(apis, config.Modules, srv); err != nil {
+	if err := RegisterApis(apis, config.Modules, srv, false); err != nil {
 		return err
 	}
 	h.httpConfig = config
 	h.httpHandler.Store(&rpcHandler{
-		Handler: NewHTTPHandlerStack(srv, config.CorsAllowedOrigins, config.Vhosts, config.jwtSecret),
+		Handler: NewHTTPHandlerStack(srv, config.CorsAllowedOrigins, config.Vhosts),
 		server:  srv,
 	})
 	return nil
@@ -322,14 +309,15 @@ func (h *httpServer) enableWS(apis []rpc.API, config wsConfig) error {
 	if h.wsAllowed() {
 		return fmt.Errorf("JSON-RPC over WebSocket is already enabled")
 	}
+
 	// Create RPC server and handler.
 	srv := rpc.NewServer()
-	if err := RegisterApis(apis, config.Modules, srv); err != nil {
+	if err := RegisterApis(apis, config.Modules, srv, false); err != nil {
 		return err
 	}
 	h.wsConfig = config
 	h.wsHandler.Store(&rpcHandler{
-		Handler: NewWSHandlerStack(srv.WebsocketHandler(config.Origins), config.jwtSecret),
+		Handler: srv.WebsocketHandler(config.Origins),
 		server:  srv,
 	})
 	return nil
@@ -369,27 +357,16 @@ func (h *httpServer) wsAllowed() bool {
 
 // isWebsocket checks the header of an http request for a websocket upgrade request.
 func isWebsocket(r *http.Request) bool {
-	return strings.EqualFold(r.Header.Get("Upgrade"), "websocket") &&
+	return strings.ToLower(r.Header.Get("Upgrade")) == "websocket" &&
 		strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade")
 }
 
 // NewHTTPHandlerStack returns wrapped http-related handlers
-func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string, jwtSecret []byte) http.Handler {
+func NewHTTPHandlerStack(srv http.Handler, cors []string, vhosts []string) http.Handler {
 	// Wrap the CORS-handler within a host-handler
 	handler := newCorsHandler(srv, cors)
 	handler = newVHostHandler(vhosts, handler)
-	if len(jwtSecret) != 0 {
-		handler = newJWTHandler(jwtSecret, handler)
-	}
 	return newGzipHandler(handler)
-}
-
-// NewWSHandlerStack returns a wrapped ws-related handler.
-func NewWSHandlerStack(srv http.Handler, jwtSecret []byte) http.Handler {
-	if len(jwtSecret) != 0 {
-		return newJWTHandler(jwtSecret, srv)
-	}
-	return srv
 }
 
 func newCorsHandler(srv http.Handler, allowedOrigins []string) http.Handler {
@@ -439,6 +416,7 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// It's an IP address, we can serve that
 		h.next.ServeHTTP(w, r)
 		return
+
 	}
 	// Not an IP address, but a hostname. Need to validate
 	if _, exist := h.vhosts["*"]; exist {
@@ -454,7 +432,7 @@ func (h *virtualHostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 var gzPool = sync.Pool{
 	New: func() interface{} {
-		w := gzip.NewWriter(io.Discard)
+		w := gzip.NewWriter(ioutil.Discard)
 		return w
 	},
 }
@@ -539,7 +517,7 @@ func (is *ipcServer) stop() error {
 
 // RegisterApis checks the given modules' availability, generates an allowlist based on the allowed modules,
 // and then registers all of the APIs exposed by the services.
-func RegisterApis(apis []rpc.API, modules []string, srv *rpc.Server) error {
+func RegisterApis(apis []rpc.API, modules []string, srv *rpc.Server, exposeAll bool) error {
 	if bad, available := checkModuleAvailability(modules, apis); len(bad) > 0 {
 		log.Error("Unavailable modules in HTTP API list", "unavailable", bad, "available", available)
 	}
@@ -550,7 +528,7 @@ func RegisterApis(apis []rpc.API, modules []string, srv *rpc.Server) error {
 	}
 	// Register all the APIs exposed by the services
 	for _, api := range apis {
-		if allowList[api.Namespace] || len(allowList) == 0 {
+		if exposeAll || allowList[api.Namespace] || (len(allowList) == 0 && api.Public) {
 			if err := srv.RegisterName(api.Namespace, api.Service); err != nil {
 				return err
 			}

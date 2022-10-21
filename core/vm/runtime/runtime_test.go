@@ -22,6 +22,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,11 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/params"
-
-	// force-load js tracers to trigger registration
-	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
 )
 
 func TestDefaults(t *testing.T) {
@@ -325,6 +322,25 @@ func TestBlockhash(t *testing.T) {
 	}
 }
 
+type stepCounter struct {
+	inner *vm.JSONLogger
+	steps int
+}
+
+func (s *stepCounter) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+}
+
+func (s *stepCounter) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+}
+
+func (s *stepCounter) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {}
+
+func (s *stepCounter) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
+	s.steps++
+	// Enable this for more output
+	//s.inner.CaptureState(env, pc, op, gas, cost, memory, stack, rStack, contract, depth, err)
+}
+
 // benchmarkNonModifyingCode benchmarks code, but if the code modifies the
 // state, this should not be used, since it does not reset the state between runs.
 func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode string, b *testing.B) {
@@ -333,7 +349,7 @@ func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode 
 	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	cfg.GasLimit = gas
 	if len(tracerCode) > 0 {
-		tracer, err := tracers.New(tracerCode, new(tracers.Context), nil)
+		tracer, err := tracers.New(tracerCode, new(tracers.Context))
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -379,6 +395,7 @@ func benchmarkNonModifyingCode(gas uint64, code []byte, name string, tracerCode 
 // BenchmarkSimpleLoop test a pretty simple loop which loops until OOG
 // 55 ms
 func BenchmarkSimpleLoop(b *testing.B) {
+
 	staticCallIdentity := []byte{
 		byte(vm.JUMPDEST), //  [ count ]
 		// push args for the call
@@ -457,7 +474,7 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMP),
 	}
 
-	callRevertingContractWithInput := []byte{
+	calllRevertingContractWithInput := []byte{
 		byte(vm.JUMPDEST), //
 		// push args for the call
 		byte(vm.PUSH1), 0, // out size
@@ -473,7 +490,7 @@ func BenchmarkSimpleLoop(b *testing.B) {
 		byte(vm.JUMP),
 	}
 
-	//tracer := logger.NewJSONLogger(nil, os.Stdout)
+	//tracer := vm.NewJSONLogger(nil, os.Stdout)
 	//Execute(loopingCode, nil, &Config{
 	//	EVMConfig: vm.Config{
 	//		Debug:  true,
@@ -485,7 +502,7 @@ func BenchmarkSimpleLoop(b *testing.B) {
 	benchmarkNonModifyingCode(100000000, loopingCode, "loop-100M", "", b)
 	benchmarkNonModifyingCode(100000000, callInexistant, "call-nonexist-100M", "", b)
 	benchmarkNonModifyingCode(100000000, callEOA, "call-EOA-100M", "", b)
-	benchmarkNonModifyingCode(100000000, callRevertingContractWithInput, "call-reverting-100M", "", b)
+	benchmarkNonModifyingCode(100000000, calllRevertingContractWithInput, "call-reverting-100M", "", b)
 
 	//benchmarkNonModifyingCode(10000000, staticCallIdentity, "staticcall-identity-10M", b)
 	//benchmarkNonModifyingCode(10000000, loopingCode, "loop-10M", b)
@@ -494,14 +511,15 @@ func BenchmarkSimpleLoop(b *testing.B) {
 // TestEip2929Cases contains various testcases that are used for
 // EIP-2929 about gas repricings
 func TestEip2929Cases(t *testing.T) {
-	t.Skip("Test only useful for generating documentation")
+
 	id := 1
 	prettyPrint := func(comment string, code []byte) {
+
 		instrs := make([]string, 0)
 		it := asm.NewInstructionIterator(code)
 		for it.Next() {
 			if it.Arg() != nil && 0 < len(it.Arg()) {
-				instrs = append(instrs, fmt.Sprintf("%v %#x", it.Op(), it.Arg()))
+				instrs = append(instrs, fmt.Sprintf("%v 0x%x", it.Op(), it.Arg()))
 			} else {
 				instrs = append(instrs, fmt.Sprintf("%v", it.Op()))
 			}
@@ -509,13 +527,13 @@ func TestEip2929Cases(t *testing.T) {
 		ops := strings.Join(instrs, ", ")
 		fmt.Printf("### Case %d\n\n", id)
 		id++
-		fmt.Printf("%v\n\nBytecode: \n```\n%#x\n```\nOperations: \n```\n%v\n```\n\n",
+		fmt.Printf("%v\n\nBytecode: \n```\n0x%x\n```\nOperations: \n```\n%v\n```\n\n",
 			comment,
 			code, ops)
 		Execute(code, nil, &Config{
 			EVMConfig: vm.Config{
 				Debug:     true,
-				Tracer:    logger.NewMarkdownLogger(nil, os.Stdout),
+				Tracer:    vm.NewMarkdownLogger(nil, os.Stdout),
 				ExtraEips: []int{2929},
 			},
 		})
@@ -665,7 +683,7 @@ func TestColdAccountAccessCost(t *testing.T) {
 			want: 7600,
 		},
 	} {
-		tracer := logger.NewStructLogger(nil)
+		tracer := vm.NewStructLogger(nil)
 		Execute(tc.code, nil, &Config{
 			EVMConfig: vm.Config{
 				Debug:  true,
@@ -730,7 +748,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.CREATE),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,952855,6,12"`, `"1,1,952855,6,0"`},
+			results: []string{`"1,1,4294935775,6,12"`, `"1,1,4294935775,6,0"`},
 		},
 		{
 			// CREATE2
@@ -746,7 +764,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.CREATE2),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,952846,6,13"`, `"1,1,952846,6,0"`},
+			results: []string{`"1,1,4294935766,6,13"`, `"1,1,4294935766,6,0"`},
 		},
 		{
 			// CALL
@@ -759,7 +777,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.CALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981796,6,13"`, `"1,1,981796,6,0"`},
+			results: []string{`"1,1,4294964716,6,13"`, `"1,1,4294964716,6,0"`},
 		},
 		{
 			// CALLCODE
@@ -772,7 +790,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.CALLCODE),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981796,6,13"`, `"1,1,981796,6,0"`},
+			results: []string{`"1,1,4294964716,6,13"`, `"1,1,4294964716,6,0"`},
 		},
 		{
 			// STATICCALL
@@ -784,7 +802,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.STATICCALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981799,6,12"`, `"1,1,981799,6,0"`},
+			results: []string{`"1,1,4294964719,6,12"`, `"1,1,4294964719,6,0"`},
 		},
 		{
 			// DELEGATECALL
@@ -796,7 +814,7 @@ func TestRuntimeJSTracer(t *testing.T) {
 				byte(vm.DELEGATECALL),
 				byte(vm.POP),
 			},
-			results: []string{`"1,1,981799,6,12"`, `"1,1,981799,6,0"`},
+			results: []string{`"1,1,4294964719,6,12"`, `"1,1,4294964719,6,0"`},
 		},
 		{
 			// CALL self-destructing contract
@@ -832,13 +850,12 @@ func TestRuntimeJSTracer(t *testing.T) {
 			statedb.SetCode(common.HexToAddress("0xee"), calleeCode)
 			statedb.SetCode(common.HexToAddress("0xff"), depressedCode)
 
-			tracer, err := tracers.New(jsTracer, new(tracers.Context), nil)
+			tracer, err := tracers.New(jsTracer, new(tracers.Context))
 			if err != nil {
 				t.Fatal(err)
 			}
 			_, _, err = Call(main, nil, &Config{
-				GasLimit: 1000000,
-				State:    statedb,
+				State: statedb,
 				EVMConfig: vm.Config{
 					Debug:  true,
 					Tracer: tracer,
@@ -868,7 +885,7 @@ func TestJSTracerCreateTx(t *testing.T) {
 	code := []byte{byte(vm.PUSH1), 0, byte(vm.PUSH1), 0, byte(vm.RETURN)}
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
-	tracer, err := tracers.New(jsTracer, new(tracers.Context), nil)
+	tracer, err := tracers.New(jsTracer, new(tracers.Context))
 	if err != nil {
 		t.Fatal(err)
 	}

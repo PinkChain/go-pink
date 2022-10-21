@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"time"
@@ -65,7 +66,7 @@ func writeNodesJSON(file string, nodes nodeSet) {
 		os.Stdout.Write(nodesJSON)
 		return
 	}
-	if err := os.WriteFile(file, nodesJSON, 0644); err != nil {
+	if err := ioutil.WriteFile(file, nodesJSON, 0644); err != nil {
 		exit(err)
 	}
 }

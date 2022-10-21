@@ -32,7 +32,7 @@ type reflectTest struct {
 
 var reflectTests = []reflectTest{
 	{
-		name: "OneToOneCorrespondence",
+		name: "OneToOneCorrespondance",
 		args: []string{"fieldA"},
 		struc: struct {
 			FieldA int `abi:"fieldA"`

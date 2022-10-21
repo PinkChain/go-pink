@@ -39,9 +39,6 @@ var (
 	// headFastBlockKey tracks the latest known incomplete block's hash during fast sync.
 	headFastBlockKey = []byte("LastFast")
 
-	// headFinalizedBlockKey tracks the latest known finalized block hash.
-	headFinalizedBlockKey = []byte("LastFinalized")
-
 	// lastPivotKey tracks the last pivot block used by fast sync (to reenable on sethead).
 	lastPivotKey = []byte("LastPivot")
 
@@ -51,8 +48,8 @@ var (
 	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
 	snapshotDisabledKey = []byte("SnapshotDisabled")
 
-	// SnapshotRootKey tracks the hash of the last snapshot.
-	SnapshotRootKey = []byte("SnapshotRoot")
+	// snapshotRootKey tracks the hash of the last snapshot.
+	snapshotRootKey = []byte("SnapshotRoot")
 
 	// snapshotJournalKey tracks the in-memory diff layers across restarts.
 	snapshotJournalKey = []byte("SnapshotJournal")
@@ -66,9 +63,6 @@ var (
 	// snapshotSyncStatusKey tracks the snapshot sync status across restarts.
 	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
 
-	// skeletonSyncStatusKey tracks the skeleton sync status across restarts.
-	skeletonSyncStatusKey = []byte("SkeletonSyncStatus")
-
 	// txIndexTailKey tracks the oldest block whose transactions have been indexed.
 	txIndexTailKey = []byte("TransactionIndexTail")
 
@@ -80,9 +74,6 @@ var (
 
 	// uncleanShutdownKey tracks the list of local crashes
 	uncleanShutdownKey = []byte("unclean-shutdown") // config prefix for the db
-
-	// transitionStatusKey tracks the eth2 transition status.
-	transitionStatusKey = []byte("eth2-transition")
 
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
@@ -98,11 +89,9 @@ var (
 	SnapshotAccountPrefix = []byte("a") // SnapshotAccountPrefix + account hash -> account trie value
 	SnapshotStoragePrefix = []byte("o") // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
 	CodePrefix            = []byte("c") // CodePrefix + code hash -> account code
-	skeletonHeaderPrefix  = []byte("S") // skeletonHeaderPrefix + num (uint64 big endian) -> header
 
-	PreimagePrefix = []byte("secure-key-")       // PreimagePrefix + hash -> preimage
-	configPrefix   = []byte("ethereum-config-")  // config prefix for the db
-	genesisPrefix  = []byte("ethereum-genesis-") // genesis state prefix for the db
+	preimagePrefix = []byte("secure-key-")      // preimagePrefix + hash -> preimage
+	configPrefix   = []byte("ethereum-config-") // config prefix for the db
 
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
@@ -110,6 +99,33 @@ var (
 	preimageCounter    = metrics.NewRegisteredCounter("db/preimage/total", nil)
 	preimageHitCounter = metrics.NewRegisteredCounter("db/preimage/hits", nil)
 )
+
+const (
+	// freezerHeaderTable indicates the name of the freezer header table.
+	freezerHeaderTable = "headers"
+
+	// freezerHashTable indicates the name of the freezer canonical hash table.
+	freezerHashTable = "hashes"
+
+	// freezerBodiesTable indicates the name of the freezer block body table.
+	freezerBodiesTable = "bodies"
+
+	// freezerReceiptTable indicates the name of the freezer receipts table.
+	freezerReceiptTable = "receipts"
+
+	// freezerDifficultyTable indicates the name of the freezer total difficulty table.
+	freezerDifficultyTable = "diffs"
+)
+
+// FreezerNoSnappy configures whether compression is disabled for the ancient-tables.
+// Hashes and difficulties don't compress well.
+var FreezerNoSnappy = map[string]bool{
+	freezerHeaderTable:     false,
+	freezerHashTable:       true,
+	freezerBodiesTable:     false,
+	freezerReceiptTable:    false,
+	freezerDifficultyTable: true,
+}
 
 // LegacyTxLookupEntry is the legacy TxLookupEntry definition with some unnecessary
 // fields.
@@ -191,14 +207,9 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	return key
 }
 
-// skeletonHeaderKey = skeletonHeaderPrefix + num (uint64 big endian)
-func skeletonHeaderKey(number uint64) []byte {
-	return append(skeletonHeaderPrefix, encodeBlockNumber(number)...)
-}
-
-// preimageKey = PreimagePrefix + hash
+// preimageKey = preimagePrefix + hash
 func preimageKey(hash common.Hash) []byte {
-	return append(PreimagePrefix, hash.Bytes()...)
+	return append(preimagePrefix, hash.Bytes()...)
 }
 
 // codeKey = CodePrefix + hash
@@ -218,9 +229,4 @@ func IsCodeKey(key []byte) (bool, []byte) {
 // configKey = configPrefix + hash
 func configKey(hash common.Hash) []byte {
 	return append(configPrefix, hash.Bytes()...)
-}
-
-// genesisStateSpecKey = genesisPrefix + hash
-func genesisStateSpecKey(hash common.Hash) []byte {
-	return append(genesisPrefix, hash.Bytes()...)
 }

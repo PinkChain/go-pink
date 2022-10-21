@@ -332,6 +332,7 @@ func BenchmarkFlatten(b *testing.B) {
 				value := make([]byte, 32)
 				rand.Read(value)
 				accStorage[randomHash()] = value
+
 			}
 			storage[accountKey] = accStorage
 		}
@@ -381,12 +382,13 @@ func BenchmarkJournal(b *testing.B) {
 				value := make([]byte, 32)
 				rand.Read(value)
 				accStorage[randomHash()] = value
+
 			}
 			storage[accountKey] = accStorage
 		}
 		return newDiffLayer(parent, common.Hash{}, destructs, accounts, storage)
 	}
-	layer := snapshot(emptyLayer())
+	layer := snapshot(new(diskLayer))
 	for i := 1; i < 128; i++ {
 		layer = fill(layer)
 	}

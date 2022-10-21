@@ -35,15 +35,10 @@ import (
 )
 
 var (
-	testdb      = rawdb.NewMemoryDatabase()
-	testKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testAddress = crypto.PubkeyToAddress(testKey.PublicKey)
-
-	gspec = core.Genesis{
-		Alloc:   core.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000)}},
-		BaseFee: big.NewInt(params.InitialBaseFee),
-	}
-	genesis      = gspec.MustCommit(testdb)
+	testdb       = rawdb.NewMemoryDatabase()
+	testKey, _   = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	testAddress  = crypto.PubkeyToAddress(testKey.PublicKey)
+	genesis      = core.GenesisBlockForTesting(testdb, testAddress, big.NewInt(1000000000000000))
 	unknownBlock = types.NewBlock(&types.Header{GasLimit: params.GenesisGasLimit, BaseFee: big.NewInt(params.InitialBaseFee)}, nil, nil, nil, trie.NewStackTrie(nil))
 )
 
@@ -65,8 +60,8 @@ func makeChain(n int, seed byte, parent *types.Block) ([]common.Hash, map[common
 			block.AddTx(tx)
 		}
 		// If the block number is a multiple of 5, add a bonus uncle to the block
-		if i > 0 && i%5 == 0 {
-			block.AddUncle(&types.Header{ParentHash: block.PrevBlock(i - 2).Hash(), Number: big.NewInt(int64(i - 1))})
+		if i%5 == 0 {
+			block.AddUncle(&types.Header{ParentHash: block.PrevBlock(i - 1).Hash(), Number: big.NewInt(int64(i - 1))})
 		}
 	})
 	hashes := make([]common.Hash, n+1)

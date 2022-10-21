@@ -1,4 +1,4 @@
-// Copyright 2020 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -86,23 +86,23 @@ type (
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
-	// ENRRequest queries for the remote node's record.
+	// enrRequest queries for the remote node's record.
 	ENRRequest struct {
 		Expiration uint64
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 
-	// ENRResponse is the reply to ENRRequest.
+	// enrResponse is the reply to enrRequest.
 	ENRResponse struct {
-		ReplyTok []byte // Hash of the ENRRequest packet.
+		ReplyTok []byte // Hash of the enrRequest packet.
 		Record   enr.Record
 		// Ignore additional fields (for forward compatibility).
 		Rest []rlp.RawValue `rlp:"tail"`
 	}
 )
 
-// This number is the maximum number of neighbor nodes in a Neighbors packet.
+// This number is the maximum number of neighbor nodes in a Neigbors packet.
 const MaxNeighbors = 12
 
 // This code computes the MaxNeighbors constant value.

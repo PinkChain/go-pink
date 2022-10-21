@@ -1,4 +1,4 @@
-// Copyright 2020 The go-ethereum Authors
+// Copyright 2019 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -36,7 +36,7 @@ type blockPropagation struct {
 	td    *big.Int
 }
 
-// broadcastBlocks is a write loop that multiplexes blocks and block announcements
+// broadcastBlocks is a write loop that multiplexes blocks and block accouncements
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
 func (p *Peer) broadcastBlocks() {

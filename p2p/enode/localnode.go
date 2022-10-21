@@ -63,7 +63,7 @@ type LocalNode struct {
 type lnEndpoint struct {
 	track                *netutil.IPTracker
 	staticIP, fallbackIP net.IP
-	fallbackUDP          uint16 // port
+	fallbackUDP          int
 }
 
 // NewLocalNode creates a local node.
@@ -208,8 +208,8 @@ func (ln *LocalNode) SetFallbackUDP(port int) {
 	ln.mu.Lock()
 	defer ln.mu.Unlock()
 
-	ln.endpoint4.fallbackUDP = uint16(port)
-	ln.endpoint6.fallbackUDP = uint16(port)
+	ln.endpoint4.fallbackUDP = port
+	ln.endpoint6.fallbackUDP = port
 	ln.updateEndpoints()
 }
 
@@ -261,7 +261,7 @@ func (ln *LocalNode) updateEndpoints() {
 }
 
 // get returns the endpoint with highest precedence.
-func (e *lnEndpoint) get() (newIP net.IP, newPort uint16) {
+func (e *lnEndpoint) get() (newIP net.IP, newPort int) {
 	newPort = e.fallbackUDP
 	if e.fallbackIP != nil {
 		newIP = e.fallbackIP
@@ -277,18 +277,15 @@ func (e *lnEndpoint) get() (newIP net.IP, newPort uint16) {
 
 // predictAddr wraps IPTracker.PredictEndpoint, converting from its string-based
 // endpoint representation to IP and port types.
-func predictAddr(t *netutil.IPTracker) (net.IP, uint16) {
+func predictAddr(t *netutil.IPTracker) (net.IP, int) {
 	ep := t.PredictEndpoint()
 	if ep == "" {
 		return nil, 0
 	}
 	ipString, portString, _ := net.SplitHostPort(ep)
 	ip := net.ParseIP(ipString)
-	port, err := strconv.ParseUint(portString, 10, 16)
-	if err != nil {
-		return nil, 0
-	}
-	return ip, uint16(port)
+	port, _ := strconv.Atoi(portString)
+	return ip, port
 }
 
 func (ln *LocalNode) invalidate() {
