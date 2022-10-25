@@ -57,7 +57,7 @@ var (
 	)
 
 	emptyEip2718Tx = NewTx(&AccessListTx{
-		ChainID:  big.NewInt(1),
+		ChainID:  big.NewInt(10100),
 		Nonce:    3,
 		To:       &testAddr,
 		Value:    big.NewInt(10),

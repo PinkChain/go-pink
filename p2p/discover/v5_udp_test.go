@@ -700,14 +700,14 @@ func newUDPV5Test(t *testing.T) *udpV5Test {
 		pipe:       newpipe(),
 		localkey:   newkey(),
 		remotekey:  newkey(),
-		remoteaddr: &net.UDPAddr{IP: net.IP{10, 0, 1, 99}, Port: 30600},
+		remoteaddr: &net.UDPAddr{IP: net.IP{10, 0, 1, 99}, Port: 30700},
 		nodesByID:  make(map[enode.ID]*enode.LocalNode),
 		nodesByIP:  make(map[string]*enode.LocalNode),
 	}
 	test.db, _ = enode.OpenDB("")
 	ln := enode.NewLocalNode(test.db, test.localkey)
 	ln.SetStaticIP(net.IP{10, 0, 0, 1})
-	ln.Set(enr.UDP(30600))
+	ln.Set(enr.UDP(30700))
 	test.udp, _ = ListenV5(test.pipe, ln, Config{
 		PrivateKey:   test.localkey,
 		Log:          testlog.Logger(t, log.LvlTrace),
