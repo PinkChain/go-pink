@@ -21,9 +21,14 @@ import "github.com/ethereum/go-ethereum/common"
 // MainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the main Ethereum network.
 var MainnetBootnodes = []string{
-	// Ethereum Foundation Go Bootnodes
-	"enode://4afa9381f8dc4472854ea35d8c83ebcecc7da5522cb900a80e445c37ad556f6da0c10cc155af426e09d2011be7557ee1d682e3377a0320d942af761e7a2d8505@63.250.40.195:30700",   // bootnode 1
-	"enode://5f77c3ed92ad7e425ac56f0d89184d93c38cdb798ea015c695e4989dd0b3cde476c9a686e8ca828d442e3b62479c341c7498a964d43347c75b094ddc7dca7928@145.14.157.143:30700",     // bootnode 2
+	// Bootnodes
+	"enode://4afa9381f8dc4472854ea35d8c83ebcecc7da5522cb900a80e445c37ad556f6da0c10cc155af426e09d2011be7557ee1d682e3377a0320d942af761e7a2d8505@63.250.40.195:30700",    // Pinkchain team 1
+	"enode://5f77c3ed92ad7e425ac56f0d89184d93c38cdb798ea015c695e4989dd0b3cde476c9a686e8ca828d442e3b62479c341c7498a964d43347c75b094ddc7dca7928@145.14.157.143:30700",   // Pinkchain team 2
+	
+	"enode://e00cea59faacd6c0ca4931beed38e171d86e3a256c102490de84afe805e55dc4504a7013e996d6c042428591e184ccfabc5cb599399768e49c0f271c3aa7eb0f@88.99.173.150:40606",     // WoolyPooly.com 1
+	
+	"enode://196f0dc7679cc58a6c44e65de64a80c1e8ca492990f0fc37a52af39250939001e4f53d4a00f225613f963ceaa294e88639c5a501242b3eada9951b533ae36c28@116.203.240.7:40606",     // WoolyPooly.com 2
+	
 	
 }
 
