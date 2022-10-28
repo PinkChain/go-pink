@@ -47,7 +47,7 @@ const (
 )
 
 var (
-	syncChallengeTimeout = 15 * time.Second // Time allowance for a node to reply to the sync progress challenge
+	syncChallengeTimeout = 10 * time.Second // Time allowance for a node to reply to the sync progress challenge
 )
 
 // txPool defines the methods needed from a transaction pool implementation to
